@@ -29,23 +29,19 @@ func (j JUnit) ImportStatement() *regexp.Regexp {
 	return regexp.MustCompile(`package (.*)`)
 }
 
-func (j JUnit) Imports() map[string]bool {
+func (j JUnit) Imports() string {
 	if string(j) == "kotlin" {
-		return map[string]bool{
-			"import org.junit.jupiter.api.Disabled":        true,
-			"import org.junit.jupiter.api.Order":           true,
-			"import org.junit.jupiter.api.MethodOrderer":   true,
-			"import org.junit.jupiter.api.TestMethodOrder": true,
-		}
-	} else {
-		return map[string]bool{
-			"import org.junit.jupiter.api.Disabled":        true,
-			"import org.junit.jupiter.api.Order":           true,
-			"import org.junit.jupiter.api.MethodOrderer":   true,
-			"import org.junit.jupiter.api.TestMethodOrder": true,
-		}
-	}
+		return "import org.junit.jupiter.api.Disabled\n" +
+			"import org.junit.jupiter.api.Order\n" +
+			"import org.junit.jupiter.api.MethodOrderer\n" +
+			"import org.junit.jupiter.api.TestMethodOrder\n"
 
+	} else {
+		return "import org.junit.jupiter.api.Disabled\n" +
+			"import org.junit.jupiter.api.Order\n" +
+			"import org.junit.jupiter.api.MethodOrderer\n" +
+			"import org.junit.jupiter.api.TestMethodOrder\n"
+	}
 }
 
 func (j JUnit) ClassOrderAnnotation() string {

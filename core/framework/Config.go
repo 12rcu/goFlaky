@@ -7,7 +7,7 @@ type Config interface {
 	TestAnnotation() *regexp.Regexp
 	TestSuiteStart() *regexp.Regexp
 	ImportStatement() *regexp.Regexp
-	Imports() map[string]bool
+	Imports() string
 	IgnoreAnnotations() string
 	ClassOrderAnnotation() string
 	TestOrderAnnotations(index int) string
