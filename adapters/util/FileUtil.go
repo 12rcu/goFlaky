@@ -4,6 +4,7 @@ import (
 	"log"
 	"os"
 	"path/filepath"
+	"regexp"
 )
 
 func SearchFile(path string, expr func(path string, fileName string) bool) []string {
@@ -26,6 +27,14 @@ func SearchFile(path string, expr func(path string, fileName string) bool) []str
 	return files
 }
 
+// SearchFileWithContent Searches a given path for files that matches a given expression.
+//
+//	SearchFileWithContent(
+//		"/home/exm/test",
+//		func(path string, fileName string, fileContent string) bool {
+//			return strings.Contains(fileContent, "myAwesomeString")
+//		},
+//	)
 func SearchFileWithContent(path string, expr func(path string, fileName string, fileContent string) bool) []string {
 	files := make([]string, 0)
 	err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
@@ -48,4 +57,33 @@ func SearchFileWithContent(path string, expr func(path string, fileName string, 
 		log.Default().Print(err)
 	}
 	return files
+}
+
+// SearchFilesAndCount searches all files in a given directory and counts how often the regex is matched in a file.
+// A list with the count of matches in each file is returned alongside with the highest number of matches.
+func SearchFilesAndCount(path string, expr *regexp.Regexp) ([]int, int) {
+	counts := make([]int, 0)
+	maxMatches := 0
+	err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			return nil
+		}
+		content, err := os.ReadFile(path)
+		if err != nil {
+			return err
+		}
+		matches := len(expr.FindAll(content, -1))
+		if matches > maxMatches {
+			maxMatches = matches
+		}
+		counts = append(counts, matches)
+		return nil
+	})
+	if err != nil {
+		log.Default().Print(err)
+	}
+	return counts, maxMatches
 }

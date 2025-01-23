@@ -12,14 +12,22 @@ import (
 	"strings"
 )
 
-func WorkerExec(workerId int, project core.ConfigProject, dj core.DependencyInjection, info ExecInfo) {
+type WorkInfo struct {
+	RunId          int
+	ProjectId      string
+	ModifyTestFile func(projectDir string)
+	GetTestOrder   func(testSuite string, testName string) []int
+	Progress       []progress.ProjectProgress
+}
+
+func (worker WorkInfo) WorkerExec(workerId int, project core.ConfigProject, dj core.DependencyInjection) {
 	cleanAndCopyProjectToWorkingDir(workerId, project, dj)
 	workDir, err := getWorkerDir(workerId, dj)
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
-	info.ModifyTestFile(workDir)
+	worker.ModifyTestFile(workDir)
 	var testExecDir string
 	if project.TestExecutionDir == "" {
 		testExecDir = workDir
@@ -27,16 +35,16 @@ func WorkerExec(workerId int, project core.ConfigProject, dj core.DependencyInje
 		testExecDir = workDir + "/" + project.TestExecutionDir
 	}
 	OsCommand(project.TestExecutionCommand, testExecDir, dj.FileLogChannel, dj.TerminalLogChannel)
-	collectResultsFramework(project, dj, info)
+	worker.collectResultsFramework(project, dj)
 
-	err = progress.ProgressProject(project.Identifier, info.Progress)
+	err = progress.ProgressProject(project.Identifier, worker.Progress)
 	if err != nil {
 		log.Println(err)
 	}
-	dj.ProgressChannel <- info.Progress
+	dj.ProgressChannel <- worker.Progress
 }
 
-func collectResultsFramework(project core.ConfigProject, dj core.DependencyInjection, info ExecInfo) {
+func (worker WorkInfo) collectResultsFramework(project core.ConfigProject, dj core.DependencyInjection) {
 	var path string
 	if project.TestResultDir == "" {
 		path = project.ProjectDir
@@ -45,29 +53,29 @@ func collectResultsFramework(project core.ConfigProject, dj core.DependencyInjec
 	}
 	switch project.Framework {
 	case "jUnit":
-		collectResults(junit.ResultCollection(path), dj, info)
+		worker.collectResults(junit.ResultCollection(path), dj)
 	default:
 		log.Printf("Unsupported framework: %s", project.Framework)
 	}
 }
 
-func collectResults(results []framework.TestResult, dj core.DependencyInjection, info ExecInfo) {
+func (worker WorkInfo) collectResults(results []framework.TestResult, dj core.DependencyInjection) {
 	for _, result := range results {
 		var testOrder []string
-		for _, o := range info.GetTestOrder(result.TestSuite, result.TestName) {
+		for _, o := range worker.GetTestOrder(result.TestSuite, result.TestName) {
 			testOrder = append(testOrder, strconv.Itoa(o))
 		}
 
-		progressIndex, err := progress.GetProgressIndex(info.ProjectId, info.Progress)
+		progressIndex, err := progress.GetProgressIndex(worker.ProjectId, worker.Progress)
 		if err != nil {
 			log.Println(err)
 			return
 		}
 		err = persistence.CreateTestResult(
 			dj.Db,
-			info.RunId,
-			info.Progress[progressIndex].Status,
-			info.ProjectId, result,
+			worker.RunId,
+			worker.Progress[progressIndex].Status,
+			worker.ProjectId, result,
 			strings.Join(testOrder, ","),
 		)
 		if err != nil {
