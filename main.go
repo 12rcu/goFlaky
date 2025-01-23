@@ -7,8 +7,6 @@ import (
 	"goFlaky/core/progress"
 	"goFlaky/core/run"
 	"log"
-	"strconv"
-	"time"
 )
 
 func main() {
@@ -47,11 +45,4 @@ func main() {
 	service := run.CreateService(runId, dj)
 	go service.Execute()
 	go terminalui.TerminalUi(config, prgs, progressChannel, logChannel)
-}
-
-func test(progressChannel chan []progress.ProjectProgress, logChannel chan string) {
-	for i := range 100 {
-		time.Sleep(1 * time.Second)
-		logChannel <- "Test " + strconv.Itoa(i)
-	}
 }
