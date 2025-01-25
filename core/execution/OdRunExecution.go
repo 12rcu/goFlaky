@@ -18,45 +18,54 @@ type OdRunExecution struct {
 	WorkOrders    chan WorkInfo
 }
 
-func (s OdRunExecution) ExecuteOdRuns() {
-	testOrderStrategy, err := mapper.CreateStrategy(s.Project.Strategy)
+func (exec OdRunExecution) runs() int {
+	_, maxTestsPerFile := util.SearchFilesAndCount(
+		exec.Project.ProjectDir+"/"+exec.Project.TestDir,
+		exec.FrameworkConf.TestAnnotation(),
+		func(log string) {
+			exec.Dj.TerminalLogChannel <- "[ERROR] while searching for test orders " + log
+		},
+	)
+	return maxTestsPerFile
+}
+
+func (exec OdRunExecution) ExecuteOdRuns() {
+	testOrderStrategy, err := mapper.CreateStrategy(exec.Project.Strategy)
 	if err != nil {
 		log.Fatal(err.Error())
 	}
 
-	_, maxTestsPerFile := util.SearchFilesAndCount(
-		s.Project.ProjectDir+"/"+s.Project.TestDir,
-		s.FrameworkConf.TestAnnotation(),
-	)
-
-	orders := testOrderStrategy.GenerateOrder(maxTestsPerFile)
+	orders := testOrderStrategy.GenerateOrder(exec.runs())
 
 	for _, order := range orders {
-		s.WorkOrders <- WorkInfo{
-			RunId:     s.RunId,
-			ProjectId: s.Project.Identifier,
+		exec.WorkOrders <- WorkInfo{
+			RunId:     exec.RunId,
+			ProjectId: exec.Project.Identifier,
 			ModifyTestFile: func(projectDir string) {
 				testFiles := util.SearchFileWithContent(
 					projectDir,
 					func(path string, fileName string, fileContent string) bool {
-						return s.FrameworkConf.TestAnnotation().MatchString(fileContent)
+						return exec.FrameworkConf.TestAnnotation().MatchString(fileContent)
+					},
+					func(log string) {
+						exec.Dj.TerminalLogChannel <- "[ERROR] while executing OD tests " + log
 					},
 				)
 				for _, file := range testFiles {
 					content, err := os.ReadFile(file)
 					if err != nil {
-						log.Println(err.Error())
+						exec.Dj.TerminalLogChannel <- "[ERROR] OD failed to read test file " + err.Error()
 						continue
 					}
-					ov := testmodify.ModifyTestFile(order, string(content), s.FrameworkConf)
+					ov := testmodify.ModifyTestFile(order, string(content), exec.FrameworkConf)
 					err = os.WriteFile(file, []byte(ov), 0770)
 					if err != nil {
-						log.Println(err.Error())
+						exec.Dj.TerminalLogChannel <- "[ERROR] OD failed to modify test file " + err.Error()
 					}
 				}
 			},
 			GetTestOrder: func(testSuite string, testName string) []int { return order },
-			Progress:     s.Dj.Progress,
+			Progress:     exec.Dj.Progress,
 		}
 	}
 }

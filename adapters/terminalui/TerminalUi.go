@@ -4,15 +4,17 @@ import (
 	"github.com/gdamore/tcell/v2"
 	"github.com/rivo/tview"
 	"goFlaky/adapters/terminalui/uiprogress"
-	"goFlaky/core"
 	"goFlaky/core/progress"
+	"sync"
+	"time"
 )
 
-func TerminalUi(config *core.Config,
+func TerminalUi(
 	initProgress []progress.ProjectProgress,
 	progressChannel chan []progress.ProjectProgress,
-	logChannel chan string) {
-
+	logChannel chan string,
+	waitGroup *sync.WaitGroup,
+) {
 	app := tview.NewApplication()
 	tview.Styles = tview.Theme{
 		PrimitiveBackgroundColor:    tcell.NewHexColor(0x1d1f21),
@@ -36,21 +38,25 @@ func TerminalUi(config *core.Config,
 	wrapper := progressWrapper{
 		projectProgress: initProgress,
 		projectLogs:     "",
+		done:            false,
 	}
-
-	updateChannel := make(chan bool)
 
 	updateUi(box, wrapper.projectProgress, wrapper.projectLogs)
 
 	go drawApp(app, box)
 
-	go receiveProgress(progressChannel, &wrapper, updateChannel)
-	go receiveLogs(logChannel, &wrapper, updateChannel)
+	go receiveProgress(progressChannel, &wrapper)
+	go receiveLogs(logChannel, &wrapper)
 
-	for _ = range updateChannel {
-		updateUi(box, wrapper.projectProgress, wrapper.projectLogs)
-		app.Draw()
+	for !wrapper.done {
+		time.Sleep(1 * time.Second)
+		app.QueueUpdateDraw(func() {
+			updateUi(box, wrapper.projectProgress, wrapper.projectLogs)
+		})
 	}
+	time.Sleep(10 * time.Second)
+	app.Stop()
+	waitGroup.Done()
 }
 
 func drawApp(app *tview.Application, box *tview.Flex) {
@@ -59,19 +65,18 @@ func drawApp(app *tview.Application, box *tview.Flex) {
 	}
 }
 
-func receiveProgress(progressChannel chan []progress.ProjectProgress, wrapper *progressWrapper, updateChannel chan bool) {
+func receiveProgress(progressChannel chan []progress.ProjectProgress, wrapper *progressWrapper) {
 	for prg := range progressChannel {
 		wrapper.projectProgress = prg
-		updateChannel <- true
 	}
+	wrapper.done = true
 }
 
-func receiveLogs(logChannel chan string, wrapper *progressWrapper, updateChannel chan bool) {
+func receiveLogs(logChannel chan string, wrapper *progressWrapper) {
 	for prg := range logChannel {
 		log := prg + "\n" + wrapper.projectLogs
 
 		wrapper.projectLogs = log
-		updateChannel <- true
 	}
 }
 
@@ -85,4 +90,5 @@ func updateUi(box *tview.Flex, currProgress []progress.ProjectProgress, currLogs
 type progressWrapper struct {
 	projectProgress []progress.ProjectProgress
 	projectLogs     string
+	done            bool
 }

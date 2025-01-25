@@ -4,12 +4,9 @@ import (
 	"goFlaky/adapters/mapper"
 	"goFlaky/core"
 	"goFlaky/core/execution"
-	"log"
+	"goFlaky/core/framework"
+	"sync"
 )
-
-type IRunService interface {
-	Execute() error
-}
 
 type Service struct {
 	RunId int
@@ -23,31 +20,54 @@ func CreateService(runId int, dj core.DependencyInjection) *Service {
 	}
 }
 
-func (s *Service) Execute() {
+func (s *Service) Execute(waitGroup *sync.WaitGroup) {
 	for _, p := range s.dj.Config.Projects {
 		frameworkConfig, err := mapper.CreateFrameworkConfig(p.Framework)
 		if err != nil {
-			log.Printf("Error creating framework config %v", err)
+			s.dj.TerminalLogChannel <- "[ERROR] while creating framework config " + err.Error()
 		}
 
 		workOrders := make(chan execution.WorkInfo)
+		var workerWaitGroup sync.WaitGroup
 
-		//pre runs
-		preRunExecution := execution.PreRunExecution{
-			RunId:      s.RunId,
-			Project:    p,
-			Dj:         s.dj,
-			WorkOrders: workOrders,
-		}
-		odExecution := execution.OdRunExecution{
-			RunId:         s.RunId,
-			Project:       p,
-			Dj:            s.dj,
-			FrameworkConf: frameworkConfig,
-			WorkOrders:    workOrders,
-		}
+		//schedule test runs with pre runs and od runs
+		go s.scheduleWorkOrders(workOrders, frameworkConfig, p)
 
-		preRunExecution.ExecutePreRuns()
-		odExecution.ExecuteOdRuns()
+		//create n runners defined by the config
+		for i := 0; i < int(s.dj.Config.Worker); i++ {
+			workerWaitGroup.Add(1)
+			//execute scheduled orders
+			go execution.Worker(i, p, s.dj, workOrders, &workerWaitGroup)
+		}
+		//todo classification
+
+		workerWaitGroup.Wait()
 	}
+
+	close(s.dj.ProgressChannel)
+	close(s.dj.TerminalLogChannel)
+	close(s.dj.FileLogChannel)
+
+	waitGroup.Done()
+}
+
+func (s *Service) scheduleWorkOrders(workOrders chan execution.WorkInfo, frameworkConfig framework.Config, p core.ConfigProject) {
+	//pre runs
+	preRunExecution := execution.PreRunExecution{
+		RunId:      s.RunId,
+		Project:    p,
+		Dj:         s.dj,
+		WorkOrders: workOrders,
+	}
+	odExecution := execution.OdRunExecution{
+		RunId:         s.RunId,
+		Project:       p,
+		Dj:            s.dj,
+		FrameworkConf: frameworkConfig,
+		WorkOrders:    workOrders,
+	}
+
+	preRunExecution.ExecutePreRuns()
+	odExecution.ExecuteOdRuns()
+	close(workOrders)
 }

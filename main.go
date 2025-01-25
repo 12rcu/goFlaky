@@ -7,6 +7,7 @@ import (
 	"goFlaky/core/progress"
 	"goFlaky/core/run"
 	"log"
+	"sync"
 )
 
 func main() {
@@ -24,6 +25,7 @@ func main() {
 
 	progressChannel := make(chan []progress.ProjectProgress)
 	logChannel := make(chan string)
+	fileLogChannel := make(chan string)
 
 	dj := core.DependencyInjection{
 		Config:             config,
@@ -31,6 +33,7 @@ func main() {
 		ProgressChannel:    progressChannel,
 		TerminalLogChannel: logChannel,
 		Db:                 db,
+		FileLogChannel:     fileLogChannel,
 	}
 
 	var projectNames []string
@@ -42,7 +45,13 @@ func main() {
 		log.Fatal(err)
 	}
 
+	waitGroup := sync.WaitGroup{}
+	waitGroup.Add(2)
+
 	service := run.CreateService(runId, dj)
-	go service.Execute()
-	go terminalui.TerminalUi(config, prgs, progressChannel, logChannel)
+	go service.Execute(&waitGroup)
+
+	go terminalui.TerminalUi(prgs, progressChannel, logChannel, &waitGroup)
+
+	waitGroup.Wait()
 }

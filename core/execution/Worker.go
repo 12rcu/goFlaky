@@ -10,6 +10,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 )
 
 type WorkInfo struct {
@@ -20,14 +21,21 @@ type WorkInfo struct {
 	Progress       []progress.ProjectProgress
 }
 
-func (worker WorkInfo) WorkerExec(workerId int, project core.ConfigProject, dj core.DependencyInjection) {
+func Worker(id int, project core.ConfigProject, dj core.DependencyInjection, jobs <-chan WorkInfo, waitGroup *sync.WaitGroup) {
+	for j := range jobs {
+		j.workerExec(id, project, dj)
+	}
+	waitGroup.Done()
+}
+
+func (order WorkInfo) workerExec(workerId int, project core.ConfigProject, dj core.DependencyInjection) {
 	cleanAndCopyProjectToWorkingDir(workerId, project, dj)
 	workDir, err := getWorkerDir(workerId, dj)
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
-	worker.ModifyTestFile(workDir)
+	order.ModifyTestFile(workDir)
 	var testExecDir string
 	if project.TestExecutionDir == "" {
 		testExecDir = workDir
@@ -35,51 +43,52 @@ func (worker WorkInfo) WorkerExec(workerId int, project core.ConfigProject, dj c
 		testExecDir = workDir + "/" + project.TestExecutionDir
 	}
 	OsCommand(project.TestExecutionCommand, testExecDir, dj.FileLogChannel, dj.TerminalLogChannel)
-	worker.collectResultsFramework(project, dj)
+	order.collectResultsFramework(project, dj)
 
-	err = progress.ProgressProject(project.Identifier, worker.Progress)
+	err = progress.ProgressProject(project.Identifier, order.Progress)
 	if err != nil {
-		log.Println(err)
+		dj.TerminalLogChannel <- "[ERROR] worker, " + err.Error()
 	}
-	dj.ProgressChannel <- worker.Progress
+	dj.ProgressChannel <- order.Progress
 }
 
-func (worker WorkInfo) collectResultsFramework(project core.ConfigProject, dj core.DependencyInjection) {
+func (order WorkInfo) collectResultsFramework(project core.ConfigProject, dj core.DependencyInjection) {
 	var path string
 	if project.TestResultDir == "" {
 		path = project.ProjectDir
 	} else {
 		path = project.ProjectDir + "/" + project.TestResultDir
 	}
-	switch project.Framework {
-	case "jUnit":
-		worker.collectResults(junit.ResultCollection(path), dj)
+	switch strings.ToLower(project.Framework) {
+	case "junit":
+		order.collectResults(junit.ResultCollection(path, dj), dj)
+		break
 	default:
-		log.Printf("Unsupported framework: %s", project.Framework)
+		dj.TerminalLogChannel <- "[ERROR] Framework not supported: " + project.Framework
 	}
 }
 
-func (worker WorkInfo) collectResults(results []framework.TestResult, dj core.DependencyInjection) {
+func (order WorkInfo) collectResults(results []framework.TestResult, dj core.DependencyInjection) {
 	for _, result := range results {
 		var testOrder []string
-		for _, o := range worker.GetTestOrder(result.TestSuite, result.TestName) {
+		for _, o := range order.GetTestOrder(result.TestSuite, result.TestName) {
 			testOrder = append(testOrder, strconv.Itoa(o))
 		}
 
-		progressIndex, err := progress.GetProgressIndex(worker.ProjectId, worker.Progress)
+		progressIndex, err := progress.GetProgressIndex(order.ProjectId, order.Progress)
 		if err != nil {
-			log.Println(err)
+			dj.TerminalLogChannel <- "[ERROR] " + err.Error()
 			return
 		}
 		err = persistence.CreateTestResult(
 			dj.Db,
-			worker.RunId,
-			worker.Progress[progressIndex].Status,
-			worker.ProjectId, result,
+			order.RunId,
+			order.Progress[progressIndex].Status,
+			order.ProjectId, result,
 			strings.Join(testOrder, ","),
 		)
 		if err != nil {
-			log.Println(err)
+			dj.TerminalLogChannel <- "[ERROR] " + err.Error()
 		}
 	}
 }
@@ -87,29 +96,29 @@ func (worker WorkInfo) collectResults(results []framework.TestResult, dj core.De
 func cleanAndCopyProjectToWorkingDir(workerId int, project core.ConfigProject, dj core.DependencyInjection) {
 	workerPath, err := getWorkerDir(workerId, dj)
 	if err != nil {
-		log.Default().Printf("Failed to get worker dir for %v: %v", workerId, err)
+		dj.TerminalLogChannel <- "[ERROR] Failed to get worker dir " + err.Error()
 		return
 	}
 	err = os.RemoveAll(workerPath)
 	if err != nil {
-		log.Default().Printf("Failed to remove %v: %v", workerPath, err)
+		dj.TerminalLogChannel <- "[ERROR] Failed to clear work dir " + err.Error()
 		return
 	}
-	err = os.Mkdir(workerPath, 0770)
+	err = os.Mkdir(workerPath, 0777)
 	if err != nil {
-		log.Default().Printf("Failed to create %v: %v", workerPath, err)
+		dj.TerminalLogChannel <- "[ERROR] Failed to create work dir " + err.Error()
 		return
 	}
 	err = os.CopyFS(workerPath, os.DirFS(project.ProjectDir))
 	if err != nil {
-		log.Default().Printf("Failed to copy %v: %v", workerPath, err)
+		dj.TerminalLogChannel <- "[ERROR] Failed to copy to work dir " + err.Error()
 		return
 	}
 }
 
 func getWorkerDir(workerId int, dj core.DependencyInjection) (string, error) {
-	path := dj.Config.TmpDir + "/workers/worker-" + strconv.Itoa(workerId)
-	err := os.MkdirAll(path, 0770)
+	path := dj.Config.BaseDir + "/" + dj.Config.TmpDir + "/workers/worker-" + strconv.Itoa(workerId)
+	err := os.MkdirAll(path, 0777)
 	if err != nil {
 		return "", err
 	}

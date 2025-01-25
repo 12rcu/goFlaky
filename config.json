@@ -1,20 +1,26 @@
 {
-  "baseDir": "/home/matthias/Documents/opensource/kFlaky",
+  "baseDir": "/home/matthias/Documents/opensource/goFlaky",
   "logDir": "logs",
   "tmpDir": "temp",
-  "worker": 2,
+  "worker": 1,
   "projects": [
     {
       "identifier": "flakyTestPrj",
       "framework": "junit",
       "language": "kotlin",
       "projectPath": "/home/matthias/Documents/opensource/flakyProjects/FlakyTestProject",
-      "testExecutionCommand": "./gradlew test",
+      "testExecutionCommand": {
+        "path": "/bin/sh",
+        "command": "gradlew",
+        "args": [
+          "test"
+        ]
+      },
       "testResultDir": "build/test-results",
       "testExecutionDir": "",
       "testDir": "src/test/kotlin",
-      "strategy": "TUSCAN_SQUARES",
-      "preRuns": 10
+      "strategy": "reverse",
+      "preRuns": 1
     }
   ]
 }

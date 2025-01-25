@@ -1,13 +1,12 @@
 package util
 
 import (
-	"log"
 	"os"
 	"path/filepath"
 	"regexp"
 )
 
-func SearchFile(path string, expr func(path string, fileName string) bool) []string {
+func SearchFile(path string, expr func(path string, fileName string) bool, logErr func(log string)) []string {
 	files := make([]string, 0)
 	err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -22,7 +21,7 @@ func SearchFile(path string, expr func(path string, fileName string) bool) []str
 		return nil
 	})
 	if err != nil {
-		log.Default().Print(err)
+		logErr(err.Error())
 	}
 	return files
 }
@@ -35,7 +34,7 @@ func SearchFile(path string, expr func(path string, fileName string) bool) []str
 //			return strings.Contains(fileContent, "myAwesomeString")
 //		},
 //	)
-func SearchFileWithContent(path string, expr func(path string, fileName string, fileContent string) bool) []string {
+func SearchFileWithContent(path string, expr func(path string, fileName string, fileContent string) bool, logErr func(log string)) []string {
 	files := make([]string, 0)
 	err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
 		if err != nil {
@@ -54,14 +53,14 @@ func SearchFileWithContent(path string, expr func(path string, fileName string, 
 		return nil
 	})
 	if err != nil {
-		log.Default().Print(err)
+		logErr(err.Error())
 	}
 	return files
 }
 
 // SearchFilesAndCount searches all files in a given directory and counts how often the regex is matched in a file.
 // A list with the count of matches in each file is returned alongside with the highest number of matches.
-func SearchFilesAndCount(path string, expr *regexp.Regexp) ([]int, int) {
+func SearchFilesAndCount(path string, expr *regexp.Regexp, logErr func(log string)) ([]int, int) {
 	counts := make([]int, 0)
 	maxMatches := 0
 	err := filepath.Walk(path, func(path string, info os.FileInfo, err error) error {
@@ -83,7 +82,7 @@ func SearchFilesAndCount(path string, expr *regexp.Regexp) ([]int, int) {
 		return nil
 	})
 	if err != nil {
-		log.Default().Print(err)
+		logErr(err.Error())
 	}
 	return counts, maxMatches
 }

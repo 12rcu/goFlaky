@@ -12,6 +12,6 @@ func ProjectLogDisplay(log string) *tview.Flex {
 	box.SetTitle("Log")
 	box.SetTitleColor(tview.Styles.SecondaryTextColor)
 
-	box.AddItem(tview.NewTextView().SetText(log), 0, 1, false)
+	box.AddItem(tview.NewTextView().SetText("⮕ "+log), 0, 1, false)
 	return box
 }

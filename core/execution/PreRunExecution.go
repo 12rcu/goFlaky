@@ -9,14 +9,18 @@ type PreRunExecution struct {
 	WorkOrders chan WorkInfo
 }
 
-func (s PreRunExecution) ExecutePreRuns() {
-	for i := 0; i < int(s.Project.PreRuns); i++ {
-		s.WorkOrders <- WorkInfo{
-			RunId:          s.RunId,
-			ProjectId:      s.Project.Identifier,
+func (exec PreRunExecution) runs() int {
+	return int(exec.Project.PreRuns)
+}
+
+func (exec PreRunExecution) ExecutePreRuns() {
+	for i := 0; i < exec.runs(); i++ {
+		exec.WorkOrders <- WorkInfo{
+			RunId:          exec.RunId,
+			ProjectId:      exec.Project.Identifier,
 			ModifyTestFile: func(projectDir string) {},
 			GetTestOrder:   func(testSuite string, testName string) []int { return []int{} },
-			Progress:       s.Dj.Progress,
+			Progress:       exec.Dj.Progress,
 		}
 	}
 }

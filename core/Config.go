@@ -16,17 +16,23 @@ type Config struct {
 }
 
 type ConfigProject struct {
-	Identifier           string `json:"identifier,omitempty"`
-	Framework            string `json:"framework,omitempty"`
-	Language             string `json:"language,omitempty"`
-	ProjectDir           string `json:"projectPath,omitempty"`
-	TestExecutionCommand string `json:"testExecutionCommand,omitempty"`
-	TestExecutionDir     string `json:"testExecutionDir,omitempty"`
-	TestDir              string `json:"testDir,omitempty"`
-	TestResultDir        string `json:"testResultDir,omitempty"`
-	Strategy             string `json:"strategy,omitempty"`
-	PreRuns              int32  `json:"preRuns,omitempty"`
-	Enabled              bool   `json:"enabled,omitempty"`
+	Identifier           string               `json:"identifier,omitempty"`
+	Framework            string               `json:"framework,omitempty"`
+	Language             string               `json:"language,omitempty"`
+	ProjectDir           string               `json:"projectPath,omitempty"`
+	TestExecutionCommand TestExecutionCommand `json:"testExecutionCommand,omitempty"`
+	TestExecutionDir     string               `json:"testExecutionDir,omitempty"`
+	TestDir              string               `json:"testDir,omitempty"`
+	TestResultDir        string               `json:"testResultDir,omitempty"`
+	Strategy             string               `json:"strategy,omitempty"`
+	PreRuns              int32                `json:"preRuns,omitempty"`
+	Enabled              bool                 `json:"enabled,omitempty"`
+}
+
+type TestExecutionCommand struct {
+	Path    string   `json:"path,omitempty"`
+	Command string   `json:"command,omitempty"`
+	Args    []string `json:"args,omitempty"`
 }
 
 func LoadConfig(path string) (*Config, error) {
@@ -41,7 +47,7 @@ func LoadConfig(path string) (*Config, error) {
 		return nil, serializeErr
 	}
 
-	prepareErr := os.MkdirAll(config.BaseDir, os.ModePerm)
+	prepareErr := os.MkdirAll(config.BaseDir, 0777)
 	if prepareErr != nil {
 		return nil, prepareErr
 	}

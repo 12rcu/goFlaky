@@ -8,7 +8,7 @@ import (
 )
 
 func CreateSQLiteConnection() (*sql.DB, error) {
-	const file string = "activities.db"
+	const file string = "default.db"
 	return sql.Open("sqlite3", file)
 }
 
