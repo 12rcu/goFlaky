@@ -7,15 +7,20 @@ import (
 	"strings"
 )
 
-func CreateSQLiteConnection() (*sql.DB, error) {
+type SQLite struct {
+	db *sql.DB
+}
+
+func CreateSQLiteConnection() (SQLite, error) {
 	const file string = "default.db"
-	return sql.Open("sqlite3", file)
+	db, err := sql.Open("sqlite3", file)
+	return SQLite{db}, err
 }
 
 // CreateNewRun Create a new run in the db and return the run id
-func CreateNewRun(db *sql.DB, projects []string) (int, error) {
+func (s SQLite) CreateNewRun(projects []string) (int, error) {
 	query := `INSERT INTO runs (start_time, projects) VALUES (CURRENT_TIMESTAMP, ?)`
-	res, err := db.Exec(query, strings.Join(projects, ","))
+	res, err := s.db.Exec(query, strings.Join(projects, ","))
 	if err != nil {
 		return 0, err
 	}
@@ -26,27 +31,31 @@ func CreateNewRun(db *sql.DB, projects []string) (int, error) {
 	return int(id), nil
 }
 
-func CreateTestResult(db *sql.DB, runId int, runType string, project string, result framework.TestResult, testOrder string) error {
+func (s SQLite) CreateTestResult(runId int, runType string, project string, result framework.TestResult, testOrder string) error {
+	t := "PRE_RUN"
+	if testOrder == "" {
+		t = "OD_RUN"
+	}
 	query := `INSERT INTO test_results(run_id, run_type, project, test_suite, test_id, result, test_order) VALUES (?,?,?,?,?,?,?)`
-	_, err := db.Exec(query, runId, runType, project, result.TestSuite, result.TestName, result.TestOutcome, testOrder)
+	_, err := s.db.Exec(query, runId, t, project, result.TestSuite, result.TestName, result.TestOutcome, testOrder)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func CreateClassification(db *sql.DB, runId int, project string, testSuite string, testName string, classification string) error {
+func (s SQLite) CreateClassification(runId int, project string, testSuite string, testName string, classification string) error {
 	query := `INSERT INTO test_classifications(run_id, project, test_suite, test_id, classification) VALUES (?,?,?,?,?)`
-	_, err := db.Exec(query, runId, project, testSuite, testName, classification)
+	_, err := s.db.Exec(query, runId, project, testSuite, testName, classification)
 	if err != nil {
 		return err
 	}
 	return nil
 }
 
-func GetProjectTestResults(db *sql.DB, runId int, project string) ([]framework.TestResult, error) {
+func (s SQLite) GetProjectTestResults(runId int, project string) ([]framework.TestResult, error) {
 	query := `SELECT test_suite, test_id, result FROM test_results WHERE project=? AND run_id=?`
-	rows, err := db.Query(query, project, runId)
+	rows, err := s.db.Query(query, project, runId)
 	if err != nil {
 		return nil, err
 	}

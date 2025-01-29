@@ -2,7 +2,6 @@ package execution
 
 import (
 	"goFlaky/adapters/junit"
-	"goFlaky/adapters/persistence"
 	"goFlaky/core"
 	"goFlaky/core/framework"
 	"goFlaky/core/progress"
@@ -19,6 +18,7 @@ type WorkInfo struct {
 	ModifyTestFile func(projectDir string)
 	GetTestOrder   func(testSuite string, testName string) []int
 	Progress       []progress.ProjectProgress
+	RunType        string
 }
 
 func Worker(id int, project core.ConfigProject, dj core.DependencyInjection, jobs <-chan WorkInfo, waitGroup *sync.WaitGroup) {
@@ -75,15 +75,13 @@ func (order WorkInfo) collectResults(results []framework.TestResult, dj core.Dep
 			testOrder = append(testOrder, strconv.Itoa(o))
 		}
 
-		progressIndex, err := progress.GetProgressIndex(order.ProjectId, order.Progress)
-		if err != nil {
-			dj.TerminalLogChannel <- "[ERROR] " + err.Error()
-			return
+		runType := "PRE_RUN"
+		if len(testOrder) > 0 {
+			runType = "OD_RUN"
 		}
-		err = persistence.CreateTestResult(
-			dj.Db,
+		err := dj.Db.CreateTestResult(
 			order.RunId,
-			order.Progress[progressIndex].Status,
+			runType,
 			order.ProjectId, result,
 			strings.Join(testOrder, ","),
 		)

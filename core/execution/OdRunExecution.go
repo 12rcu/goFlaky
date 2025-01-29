@@ -66,6 +66,7 @@ func (exec OdRunExecution) ExecuteOdRuns() {
 			},
 			GetTestOrder: func(testSuite string, testName string) []int { return order },
 			Progress:     exec.Dj.Progress,
+			RunType:      "OD_RUN",
 		}
 	}
 }

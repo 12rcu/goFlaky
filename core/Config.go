@@ -1,8 +1,8 @@
 package core
 
 import (
-	"database/sql"
 	"encoding/json"
+	"goFlaky/adapters/persistence"
 	"goFlaky/core/progress"
 	"os"
 )
@@ -60,7 +60,7 @@ type DependencyInjection struct {
 	ProgressChannel    chan []progress.ProjectProgress
 	TerminalLogChannel chan string
 	FileLogChannel     chan string
-	Db                 *sql.DB
+	Db                 persistence.SQLite
 }
 
 func CreateProgressSlice(config *Config) []progress.ProjectProgress {

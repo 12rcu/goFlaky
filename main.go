@@ -40,7 +40,7 @@ func main() {
 	for _, project := range config.Projects {
 		projectNames = append(projectNames, project.Identifier)
 	}
-	runId, err := persistence.CreateNewRun(db, projectNames)
+	runId, err := db.CreateNewRun(projectNames)
 	if err != nil {
 		log.Fatal(err)
 	}

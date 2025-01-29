@@ -21,6 +21,7 @@ func (exec PreRunExecution) ExecutePreRuns() {
 			ModifyTestFile: func(projectDir string) {},
 			GetTestOrder:   func(testSuite string, testName string) []int { return []int{} },
 			Progress:       exec.Dj.Progress,
+			RunType:        "PRE_RUN",
 		}
 	}
 }

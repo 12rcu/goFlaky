@@ -39,9 +39,14 @@ func (s *Service) Execute(waitGroup *sync.WaitGroup) {
 			//execute scheduled orders
 			go execution.Worker(i, p, s.dj, workOrders, &workerWaitGroup)
 		}
-		//todo classification
 
 		workerWaitGroup.Wait()
+
+		//results, err := s.dj.Db.GetProjectTestResults(s.RunId, p.Identifier)
+		//if err != nil {
+		//	return
+		//}
+		//execution.CreateClassification(results, s.dj, s.RunId, p.Identifier)
 	}
 
 	close(s.dj.ProgressChannel)
