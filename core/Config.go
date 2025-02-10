@@ -12,6 +12,7 @@ type Config struct {
 	LogDir   string          `json:"logDir,omitempty"`
 	TmpDir   string          `json:"tmpDir,omitempty"`
 	Worker   int8            `json:"worker,omitempty"`
+	EnableUI bool            `json:"enableUI,omitempty"`
 	Projects []ConfigProject `json:"projects,omitempty"`
 }
 

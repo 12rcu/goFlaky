@@ -41,12 +41,7 @@ func (s *Service) Execute(waitGroup *sync.WaitGroup) {
 		}
 
 		workerWaitGroup.Wait()
-
-		//results, err := s.dj.Db.GetProjectTestResults(s.RunId, p.Identifier)
-		//if err != nil {
-		//	return
-		//}
-		//execution.CreateClassification(results, s.dj, s.RunId, p.Identifier)
+		execution.CreateClassification(s.dj, s.RunId, p.Identifier)
 	}
 
 	close(s.dj.ProgressChannel)

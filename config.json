@@ -1,5 +1,5 @@
 {
-  "baseDir": "/home/matthias/Documents/opensource/goFlaky",
+  "baseDir": "C:\\Users\\matth\\Documents\\opensource\\goFlaky",
   "logDir": "logs",
   "tmpDir": "temp",
   "worker": 1,
@@ -8,10 +8,10 @@
       "identifier": "flakyTestPrj",
       "framework": "junit",
       "language": "kotlin",
-      "projectPath": "/home/matthias/Documents/opensource/flakyProjects/FlakyTestProject",
+      "projectPath": "C:\\Users\\matth\\Documents\\opensource\\flakyTest",
       "testExecutionCommand": {
-        "path": "/bin/sh",
-        "command": "gradlew",
+        "path": "cmd.exe",
+        "command": "gradlew.bat",
         "args": [
           "test"
         ]

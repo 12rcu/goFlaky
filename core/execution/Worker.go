@@ -29,12 +29,14 @@ func Worker(id int, project core.ConfigProject, dj core.DependencyInjection, job
 }
 
 func (order WorkInfo) workerExec(workerId int, project core.ConfigProject, dj core.DependencyInjection) {
+	//copy project to tmp dir
 	cleanAndCopyProjectToWorkingDir(workerId, project, dj)
 	workDir, err := getWorkerDir(workerId, dj)
 	if err != nil {
 		log.Fatal(err)
 		return
 	}
+	//modify test files if needed
 	order.ModifyTestFile(workDir)
 	var testExecDir string
 	if project.TestExecutionDir == "" {
@@ -42,9 +44,13 @@ func (order WorkInfo) workerExec(workerId int, project core.ConfigProject, dj co
 	} else {
 		testExecDir = workDir + "/" + project.TestExecutionDir
 	}
-	OsCommand(project.TestExecutionCommand, testExecDir, dj.FileLogChannel, dj.TerminalLogChannel)
-	order.collectResultsFramework(project, dj)
 
+	//run tests
+	OsCommand(project.TestExecutionCommand, testExecDir, dj.FileLogChannel, dj.TerminalLogChannel)
+	//collect results
+	order.collectResultsFramework(project, dj, workDir)
+
+	//update progress for ui feedback
 	err = progress.ProgressProject(project.Identifier, order.Progress)
 	if err != nil {
 		dj.TerminalLogChannel <- "[ERROR] worker, " + err.Error()
@@ -52,12 +58,12 @@ func (order WorkInfo) workerExec(workerId int, project core.ConfigProject, dj co
 	dj.ProgressChannel <- order.Progress
 }
 
-func (order WorkInfo) collectResultsFramework(project core.ConfigProject, dj core.DependencyInjection) {
+func (order WorkInfo) collectResultsFramework(project core.ConfigProject, dj core.DependencyInjection, workDir string) {
 	var path string
 	if project.TestResultDir == "" {
-		path = project.ProjectDir
+		path = workDir
 	} else {
-		path = project.ProjectDir + "/" + project.TestResultDir
+		path = workDir + "/" + project.TestResultDir
 	}
 	switch strings.ToLower(project.Framework) {
 	case "junit":
@@ -74,14 +80,14 @@ func (order WorkInfo) collectResults(results []framework.TestResult, dj core.Dep
 		for _, o := range order.GetTestOrder(result.TestSuite, result.TestName) {
 			testOrder = append(testOrder, strconv.Itoa(o))
 		}
-
-		runType := "PRE_RUN"
-		if len(testOrder) > 0 {
-			runType = "OD_RUN"
+		if order.RunType == "OD_RUN" && len(testOrder) <= 0 {
+			return //disabled test
 		}
+
+		dj.TerminalLogChannel <- "Added test result for [" + result.TestName + "]"
 		err := dj.Db.CreateTestResult(
 			order.RunId,
-			runType,
+			order.RunType,
 			order.ProjectId, result,
 			strings.Join(testOrder, ","),
 		)

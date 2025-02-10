@@ -1,7 +1,9 @@
 package main
 
 import (
+	"goFlaky/adapters/filelog"
 	"goFlaky/adapters/persistence"
+	"goFlaky/adapters/terminallog"
 	"goFlaky/adapters/terminalui"
 	"goFlaky/core"
 	"goFlaky/core/progress"
@@ -48,10 +50,15 @@ func main() {
 	waitGroup := sync.WaitGroup{}
 	waitGroup.Add(2)
 
+	go filelog.FileLog(config, fileLogChannel, runId)
 	service := run.CreateService(runId, dj)
 	go service.Execute(&waitGroup)
 
-	go terminalui.TerminalUi(prgs, progressChannel, logChannel, &waitGroup)
+	if config.EnableUI {
+		go terminalui.TerminalUi(prgs, progressChannel, logChannel, &waitGroup)
+	} else {
+		go terminallog.TerminalLogger(logChannel, progressChannel, &waitGroup)
+	}
 
 	waitGroup.Wait()
 }

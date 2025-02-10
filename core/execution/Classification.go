@@ -2,7 +2,7 @@ package execution
 
 import (
 	"goFlaky/core"
-	"goFlaky/core/framework"
+	"log"
 )
 
 type testId struct {
@@ -15,8 +15,13 @@ type classification struct {
 	OdRunOutcome  string
 }
 
-func CreateClassification(results []framework.TestResult, dj core.DependencyInjection, runId int, project string) {
-	var testIds map[testId]classification
+func CreateClassification(dj core.DependencyInjection, runId int, project string) {
+	results, err := dj.Db.GetProjectTestResults(runId, project)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	testIds := make(map[testId]classification)
 	for _, result := range results {
 		resultTestId := testId{
 			Suite: result.TestSuite,

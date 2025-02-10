@@ -1,0 +1,28 @@
+{
+  "baseDir": "/app",
+  "logDir": "logs",
+  "tmpDir": "temp",
+  "worker": 2,
+  "enableUi": false,
+  "projects": [
+    {
+      "identifier": "ormlite-core",
+      "framework": "junit",
+      "language": "java",
+      "projectPath": "/app/ormlite-core",
+      "testExecutionCommand": {
+        "path": "/usr/share/maven/bin/mvn",
+        "command": "mvn",
+        "args": [
+          "clean",
+          "test"
+        ]
+      },
+      "testResultDir": "target",
+      "testExecutionDir": "",
+      "testDir": "src/test/java",
+      "strategy": "reverse",
+      "preRuns": 1
+    }
+  ]
+}
