@@ -1,5 +1,5 @@
 # goFlaky
-The successor of kFlaky
+The project is abandoned. See kFlkay for the same tool with more features
 
 - [x] apply order to all test files
 - [x] execute project in temp dirs
